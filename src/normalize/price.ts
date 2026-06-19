@@ -1,11 +1,22 @@
-export function parsePrice(text: string): { price: number | null; priceMax: number | null } {
-  const normalized = text.replace(/ /g, " ");
-  const numbers = Array.from(
-    normalized.matchAll(/(\d+(?:[.,]\d+)?)/g),
-    (m) => parseFloat(m[1].replace(",", "."))
-  ).filter((n) => !Number.isNaN(n));
+function toNumber(token: string): number {
+  return parseFloat(token.replace(",", "."));
+}
 
-  if (numbers.length === 0) return { price: null, priceMax: null };
-  if (numbers.length === 1) return { price: numbers[0], priceMax: null };
-  return { price: numbers[0], priceMax: numbers[1] };
+export function parsePrice(text: string): { price: number | null; priceMax: number | null } {
+  // Sjednoť mezery (vč. nbsp) a odstraň oddělovače tisíců, ať se velká
+  // čísla ("1 299 Kč", "1.299 Kč") nerozpadnou na dvě hodnoty.
+  let s = text.replace(/ /g, " ");
+  s = s.replace(/(\d)[ ](\d{3})\b/g, "$1$2"); // mezera jako oddělovač tisíců
+  s = s.replace(/(\d)\.(\d{3})\b/g, "$1$2"); // tečka jako oddělovač tisíců
+
+  // Rozsah POUZE při explicitním oddělovači mezi dvěma čísly (-, –, "až").
+  const range = s.match(/(\d+(?:,\d+)?)\s*(?:-|–|až)\s*(\d+(?:,\d+)?)/);
+  if (range) {
+    return { price: toNumber(range[1]), priceMax: toNumber(range[2]) };
+  }
+
+  const single = s.match(/\d+(?:,\d+)?/);
+  return single
+    ? { price: toNumber(single[0]), priceMax: null }
+    : { price: null, priceMax: null };
 }

@@ -21,4 +21,16 @@ describe("parsePrice", () => {
   it("vrací null pro nečitelný text", () => {
     expect(parsePrice("akce")).toEqual({ price: null, priceMax: null });
   });
+
+  it("zvládne cenu nad 1000 s mezerou jako oddělovačem tisíců", () => {
+    expect(parsePrice("1 299 Kč")).toEqual({ price: 1299, priceMax: null });
+  });
+
+  it("zvládne cenu nad 1000 s tečkou jako oddělovačem tisíců", () => {
+    expect(parsePrice("1.299 Kč")).toEqual({ price: 1299, priceMax: null });
+  });
+
+  it("netvoří rozsah ze dvou čísel bez explicitního oddělovače (např. cena + sleva)", () => {
+    expect(parsePrice("11,90 Kč -29 %")).toEqual({ price: 11.9, priceMax: null });
+  });
 });
