@@ -12,9 +12,17 @@ skutečným vyhledáváním ze dvou zdrojů a sjednotit data do existujícího m
 
 ## Strategie zdrojů (potvrzeno reconem 2026-06-20)
 
-- **najdislevu.cz `/letaky/<obchod>`** — hlavní zdroj **šířky**: strukturovaný
-  výpis celého letáku obchodu (název, cena v `div.product-price`, platnost jako
-  rozsah „22. 6. - 28. 6. 2026", sleva %). Jeden request = celý leták obchodu.
+**Realita pokrytí:** oba agregátory vystavují strukturovaně (jako text) jen
+**~8–10 „top" akcí na obchod**, ne celý leták (zbytek letáku jsou obrázky;
+OCR je mimo rozsah). Konkrétní stránky letáků na najdislevu vrací přes scraper
+404. Reálný objem dat: ~8–10 položek × 5 obchodů × 2 zdroje, minus překryvy a
+vyloučené kategorie → **cca 40–80 reálných top akcí** v databázi. Jsou to
+aktuální, porovnatelné akce v relevantních kategoriích — vhodné pro porovnávání
+a dotazy; není to každá položka z každého letáku.
+
+- **najdislevu.cz `/letaky/<obchod>`** — zdroj **šířky**: sekce „Top slevy"
+  (~8 karet `div.product-card`: `.product-title`, `.product-price`,
+  `.discount-pts` se slevou %, platnost jako rozsah „22. 6. - 28. 6. 2026").
 - **akcniceny.cz `/akce/<produkt>/`** — zdroj **porovnání cen napříč obchody**.
   Discovery: `/letaky/<obchod>/` vrací ~10 odkazů `/akce/<produkt>/`; každá `/akce/`
   stránka nese ceny daného produktu napříč obchody (klubové ceny vč. „Clubcard").
