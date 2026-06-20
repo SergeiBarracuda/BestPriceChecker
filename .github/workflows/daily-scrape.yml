@@ -1,8 +1,9 @@
 name: daily-scrape
+
 on:
   schedule:
-    - cron: "30 5 * * *"   # každý den 05:30 UTC (~07:30 ČR v létě)
-  workflow_dispatch: {}      # umožní ruční spuštění z GitHubu
+    - cron: "30 5 * * *"
+  workflow_dispatch:
 
 jobs:
   scrape:
@@ -12,7 +13,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
+          cache: npm
       - run: npm ci
       - run: npm run scrape
         env:
