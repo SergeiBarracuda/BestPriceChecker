@@ -33,6 +33,9 @@ async function collectNajdislevu(): Promise<{ raws: RawOffer[]; errors: number }
 async function collectAkcniceny(): Promise<{ raws: RawOffer[]; errors: number }> {
   const raws: RawOffer[] = [];
   let errors = 0;
+  // Stejná /akce/ stránka srovnává ceny napříč obchody, takže se objeví u více
+  // obchodů. Stahuj každou jen jednou (šetří server i čas kvůli CRAWL_DELAY_MS).
+  const visited = new Set<string>();
   for (const store of STORES) {
     const storePage = STORE_SOURCES[store].akcnicenyStorePage;
     try {
@@ -40,6 +43,8 @@ async function collectAkcniceny(): Promise<{ raws: RawOffer[]; errors: number }>
       await sleep(CRAWL_DELAY_MS);
       const akceUrls = discoverAkceUrls(listHtml, storePage);
       for (const akceUrl of akceUrls) {
+        if (visited.has(akceUrl)) continue;
+        visited.add(akceUrl);
         try {
           const html = await fetchPage(akceUrl);
           raws.push(...parseAkcePage(html, akceUrl));

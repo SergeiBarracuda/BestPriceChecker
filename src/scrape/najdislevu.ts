@@ -19,11 +19,22 @@ export function parseNajdislevuLeaflet(
     const priceText = card.find(".product-price").first().text().replace(/\s+/g, " ").trim();
     if (!productName || !/\d/.test(priceText)) return;
 
+    // Platnost hledáme jen v doplňkovém textu karty — odeber název a cenu,
+    // ať se čísla z názvu/ceny nezamění za datum.
+    const validityText = card
+      .clone()
+      .find(".product-title, .product-price")
+      .remove()
+      .end()
+      .text()
+      .replace(/\s+/g, " ")
+      .trim();
+
     offers.push({
       productName,
       rawStore: store,
       priceText,
-      validityText: card.text().replace(/\s+/g, " ").trim(),
+      validityText,
       category: null,
       source: "najdislevu.cz",
       sourceUrl,

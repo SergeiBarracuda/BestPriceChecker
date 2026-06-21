@@ -33,4 +33,11 @@ describe("parsePrice", () => {
   it("netvoří rozsah ze dvou čísel bez explicitního oddělovače (např. cena + sleva)", () => {
     expect(parsePrice("11,90 Kč -29 %")).toEqual({ price: 11.9, priceMax: null });
   });
+
+  it("zvládne úzké a nezlomitelné mezery jako oddělovač tisíců (U+202F, U+00A0)", () => {
+    const narrow = "1" + String.fromCharCode(0x202f) + "299 Kč";
+    const nbsp = "1" + String.fromCharCode(0x00a0) + "299 Kč";
+    expect(parsePrice(narrow)).toEqual({ price: 1299, priceMax: null });
+    expect(parsePrice(nbsp)).toEqual({ price: 1299, priceMax: null });
+  });
 });

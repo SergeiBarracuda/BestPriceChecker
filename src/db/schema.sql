@@ -16,8 +16,10 @@ create table if not exists offers (
   source text not null,
   source_url text not null,
   scraped_at timestamptz not null default now(),
-  -- idempotence: stejný produkt/obchod/platnost/zdroj se neduplikuje
-  unique (store_id, product_name, is_club, valid_to, source)
+  -- idempotence: stejný produkt/obchod/platnost/zdroj se neduplikuje.
+  -- NULLS NOT DISTINCT (PostgreSQL 15+/Supabase) zajistí idempotenci i když je
+  -- valid_to NULL — jinak by se taková nabídka vkládala při každém běhu znovu.
+  unique nulls not distinct (store_id, product_name, is_club, valid_to, source)
 );
 
 create index if not exists offers_store_idx on offers (store_id);

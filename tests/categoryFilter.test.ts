@@ -43,4 +43,9 @@ describe("isExcluded", () => {
     expect(isExcluded({ productName: "Zahradní gril", category: null })).toBe(true);
     expect(isExcluded({ productName: "Dámské tričko", category: null })).toBe(true);
   });
+
+  it("nevyloučí slova, kde je klíčové slovo jen prefixem jiného slova", () => {
+    expect(isExcluded({ productName: "Ginger shot 100ml", category: null })).toBe(false);
+    expect(isExcluded({ productName: "Rumsteak hovězí", category: null })).toBe(false);
+  });
 });
