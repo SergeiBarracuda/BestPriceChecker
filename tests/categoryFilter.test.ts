@@ -30,4 +30,17 @@ describe("isExcluded", () => {
   it("PONECHÁ běžnou potravinu", () => {
     expect(isExcluded({ productName: "Gervais sýr 80g", category: "Mléčné výrobky" })).toBe(false);
   });
+
+  it("PONECHÁ produkt, kde je klíčové slovo jen vnořeným podřetězcem (originál vs gin)", () => {
+    expect(isExcluded({ productName: "Coca-Cola Originál 2l", category: null })).toBe(false);
+  });
+
+  it("stále vyloučí slovo na hranici (pivo)", () => {
+    expect(isExcluded({ productName: "Pivo Gambrinus 0,5l", category: null })).toBe(true);
+  });
+
+  it("stále respektuje prefixová klíčová slova (zahradní, dámské)", () => {
+    expect(isExcluded({ productName: "Zahradní gril", category: null })).toBe(true);
+    expect(isExcluded({ productName: "Dámské tričko", category: null })).toBe(true);
+  });
 });

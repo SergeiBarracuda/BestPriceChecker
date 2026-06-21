@@ -7,6 +7,7 @@ interface PartialDate {
 function toIso(d: PartialDate, fallbackYear: number | null): string | null {
   const year = d.year ?? fallbackYear;
   if (year === null) return null;
+  if (d.month < 1 || d.month > 12 || d.day < 1 || d.day > 31) return null;
   const mm = String(d.month).padStart(2, "0");
   const dd = String(d.day).padStart(2, "0");
   return `${year}-${mm}-${dd}`;

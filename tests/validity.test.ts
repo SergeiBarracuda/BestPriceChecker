@@ -30,4 +30,8 @@ describe("parseValidity", () => {
   it("vrací nully pro nerozpoznaný text", () => {
     expect(parseValidity("tento týden")).toEqual({ validFrom: null, validTo: null });
   });
+
+  it("odmítne nesmyslné datum (měsíc/den mimo rozsah)", () => {
+    expect(parseValidity("40. 13. 2026")).toEqual({ validFrom: null, validTo: null });
+  });
 });
