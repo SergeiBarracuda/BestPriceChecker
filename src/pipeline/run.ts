@@ -1,45 +1,96 @@
 import "dotenv/config";
 import { fetchPage } from "../scrape/fetchPage.js";
+import { parseNajdislevuLeaflet } from "../scrape/najdislevu.js";
+import { discoverAkceUrls } from "../scrape/akcnicenyDiscovery.js";
 import { parseAkcePage } from "../scrape/akcniceny.js";
-import { normalizeOffer } from "../normalize/offer.js";
-import { isExcluded } from "../filter/categoryFilter.js";
+import { normalizeAndFilter } from "./collect.js";
 import { upsertOffers, recordRun } from "../db/offersRepo.js";
-import type { NormalizedOffer } from "../types.js";
+import { STORE_SOURCES } from "../config/sources.js";
+import type { CanonicalStore, RawOffer } from "../types.js";
 
-// Startovní seznam akcí (Plán 2 ho nahradí automatickým zjišťováním).
-const SEED_AKCE_URLS: string[] = [
-  "https://www.akcniceny.cz/akce/gambrinus-10-original-svetle-vycepni-pivo-0-5l/",
-];
+const CRAWL_DELAY_MS = 1000;
+const STORES: CanonicalStore[] = ["Lidl", "Kaufland", "Globus", "Tesco", "Albert"];
 
-export async function runPipeline(
-  akceUrls: string[]
-): Promise<{ stored: number; skipped: number }> {
-  const collected: NormalizedOffer[] = [];
-  let skipped = 0;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-  for (const url of akceUrls) {
-    const html = await fetchPage(url);
-    const raws = parseAkcePage(html, url);
-    for (const raw of raws) {
-      const normalized = normalizeOffer(raw);
-      if (!normalized) { skipped++; continue; }            // nesledovaný obchod
-      if (isExcluded(normalized)) { skipped++; continue; } // vyloučená kategorie
-      collected.push(normalized);
+async function collectNajdislevu(): Promise<{ raws: RawOffer[]; errors: number }> {
+  const raws: RawOffer[] = [];
+  let errors = 0;
+  for (const store of STORES) {
+    const url = STORE_SOURCES[store].najdislevuLeaflet;
+    try {
+      const html = await fetchPage(url);
+      raws.push(...parseNajdislevuLeaflet(html, store, url));
+    } catch (err) {
+      errors++;
+      console.error(`najdislevu ${store} selhal: ${err instanceof Error ? err.message : err}`);
+    }
+    await sleep(CRAWL_DELAY_MS);
+  }
+  return { raws, errors };
+}
+
+async function collectAkcniceny(): Promise<{ raws: RawOffer[]; errors: number }> {
+  const raws: RawOffer[] = [];
+  let errors = 0;
+  for (const store of STORES) {
+    const storePage = STORE_SOURCES[store].akcnicenyStorePage;
+    try {
+      const listHtml = await fetchPage(storePage);
+      await sleep(CRAWL_DELAY_MS);
+      const akceUrls = discoverAkceUrls(listHtml, storePage);
+      for (const akceUrl of akceUrls) {
+        try {
+          const html = await fetchPage(akceUrl);
+          raws.push(...parseAkcePage(html, akceUrl));
+        } catch (err) {
+          errors++;
+          console.error(`akcniceny ${akceUrl} selhal: ${err instanceof Error ? err.message : err}`);
+        }
+        await sleep(CRAWL_DELAY_MS);
+      }
+    } catch (err) {
+      errors++;
+      console.error(`akcniceny ${store} list selhal: ${err instanceof Error ? err.message : err}`);
     }
   }
+  return { raws, errors };
+}
 
-  const stored = await upsertOffers(collected);
-  return { stored, skipped };
+export async function runPipeline(): Promise<{ najdislevu: number; akcniceny: number; skipped: number }> {
+  let skipped = 0;
+
+  const nd = await collectNajdislevu();
+  const ndFiltered = normalizeAndFilter(nd.raws);
+  skipped += ndFiltered.skipped;
+  const ndStored = await upsertOffers(ndFiltered.offers);
+  await recordRun({
+    source: "najdislevu.cz",
+    status: nd.errors > 0 ? "error" : "success",
+    itemCount: ndStored,
+    message: nd.errors > 0 ? `${nd.errors} chyb při stahování` : undefined,
+  });
+
+  const ac = await collectAkcniceny();
+  const acFiltered = normalizeAndFilter(ac.raws);
+  skipped += acFiltered.skipped;
+  const acStored = await upsertOffers(acFiltered.offers);
+  await recordRun({
+    source: "akcniceny.cz",
+    status: ac.errors > 0 ? "error" : "success",
+    itemCount: acStored,
+    message: ac.errors > 0 ? `${ac.errors} chyb při stahování` : undefined,
+  });
+
+  return { najdislevu: ndStored, akcniceny: acStored, skipped };
 }
 
 async function main() {
   try {
-    const { stored, skipped } = await runPipeline(SEED_AKCE_URLS);
-    await recordRun({ source: "akcniceny.cz", status: "success", itemCount: stored });
-    console.log(`Hotovo: uloženo ${stored}, přeskočeno ${skipped}.`);
+    const r = await runPipeline();
+    console.log(`Hotovo: najdislevu ${r.najdislevu}, akcniceny ${r.akcniceny}, přeskočeno ${r.skipped}.`);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await recordRun({ source: "akcniceny.cz", status: "error", itemCount: 0, message });
     console.error("Pipeline selhala:", message);
     process.exitCode = 1;
   }
